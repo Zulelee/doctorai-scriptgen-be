@@ -1,5 +1,6 @@
 # Llamaindex imports
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.openrouter import OpenRouter
 from llama_index.agent.openai import OpenAIAgent
 from llama_index.tools.exa import ExaToolSpec
 from llama_index.core.workflow import (
@@ -17,7 +18,7 @@ from app.api import tools
 from datetime import datetime
 from llama_index.core.llms import ChatMessage
 from pydantic import Field
-
+from llama_index.core.agent.workflow import AgentWorkflow
 
 
 class SEO_Platform_Strategist(Event):
@@ -38,7 +39,11 @@ class IdeationFlow(Workflow):
 
     @step()
     async def start_agent_flow(self, ev: StartEvent) -> Target_Audience_Trend_Alchemist:
-        
+        if ev.provider == "openai":
+            self.llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=ev.model)
+        elif ev.provider == "openrouter":
+            self.llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=ev.model, max_tokens=1000)
+
         initial_input = ev.input
         self.chat_history = ev.chat_history
         prompt = f"Here is the initial topic I need youtube ideas on - {initial_input}. \n\n The chat history with the brainstorming agent is: {self.chat_history}"
@@ -88,9 +93,16 @@ class IdeationFlow(Workflow):
 
         tool_list.extend(exa_tool.to_tool_list())
 
-        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # response = agent.chat(input)
 
-        response = agent.chat(input)
+        workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=self.llm,
+            system_prompt=str(system_prompt),
+        )
+        response = await workflow.run(user_msg=str(input))
+
         tools.save_outputs_in_notion(str(response), f"Trend And Audience Analysis - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         self.report["Trend_And_Audience_Analysis"] = str(response)
 
@@ -116,9 +128,17 @@ class IdeationFlow(Workflow):
 
         tool_list.extend(exa_tool.to_tool_list())
 
-        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
 
-        response = agent.chat(input)
+        # response = agent.chat(input)
+
+        workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=self.llm,
+            system_prompt=str(system_prompt),
+        )
+        response = await workflow.run(user_msg=str(input))
+        
 
         tools.save_outputs_in_notion(str(response), f"SEO Analysis - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         
@@ -145,9 +165,17 @@ class IdeationFlow(Workflow):
                         description="use it to find out more about our target audience, our avatars. Their information about interests, age, employment and other information about them."
                         )
             ]
-        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
 
-        response = agent.chat(input)
+        # response = agent.chat(input)
+
+        workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=self.llm,
+            system_prompt=str(system_prompt),
+        )
+        response = await workflow.run(user_msg=str(input))
+        
 
         tools.save_outputs_in_notion(str(response), f"Content Strategist - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
@@ -172,6 +200,11 @@ class ResearchFlow(Workflow):
 
     @step()
     async def start_agent_flow(self, ev: StartEvent) -> Research_Navigator:
+
+        if ev.provider == "openai":
+            self.llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=ev.model)
+        elif ev.provider == "openrouter":
+            self.llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=ev.model, max_tokens=1000)
         
         initial_input = ev.input
         ideation_output = ev.ideation
@@ -207,9 +240,16 @@ class ResearchFlow(Workflow):
                         )
         ]
 
-        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
 
-        response = await agent.achat(input)
+        # response = await agent.achat(input)
+        workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=self.llm,
+            system_prompt=str(system_prompt),
+        )
+        response = await workflow.run(user_msg=str(input))
+        
 
         tools.save_outputs_in_notion(str(response), f"Research Navigator - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
@@ -247,9 +287,16 @@ class ResearchFlow(Workflow):
 
         tool_list.extend(exa_tool.to_tool_list())
 
-        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
 
-        response = await agent.achat(input)
+        # response = await agent.achat(input)
+        workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=self.llm,
+            system_prompt=str(system_prompt),
+        )
+        response = await workflow.run(user_msg=str(input))
+        
 
         tools.save_outputs_in_notion(str(response), f"Knowledge Curator Fact Checker - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
@@ -277,7 +324,12 @@ class ScriptingFlow(Workflow):
 
     @step()
     async def start_agent_flow(self, ev: StartEvent) -> Lead_Scriptwriter_Engagement_Maestro:
-        
+        if ev.provider == "openai":
+            self.llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=ev.model)
+        elif ev.provider == "openrouter":
+            self.llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=ev.model, max_tokens=1000)
+
+
         ideation_output = ev.ideation
         research_output = ev.research
 
@@ -318,9 +370,17 @@ class ScriptingFlow(Workflow):
                         )
         ]
 
-        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
 
-        response = agent.chat(input)
+        # response = agent.chat(input)
+
+        workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=self.llm,
+            system_prompt=str(system_prompt),
+        )
+        response = await workflow.run(user_msg=str(input))
+        
 
         self.report["Final_Script"] = str(response)
         
@@ -337,9 +397,16 @@ class ScriptingFlow(Workflow):
 
         tool_list = []
 
-        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
 
-        response = agent.chat(input)
+        # response = agent.chat(input)
+        workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=self.llm,
+            system_prompt=str(system_prompt),
+        )
+        response = await workflow.run(user_msg=str(input))
+        
 
         self.report["MR_BEAST_SCORE"] = str(response)
 
@@ -353,9 +420,17 @@ class ScriptingFlow(Workflow):
 
         tool_list = []
 
-        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
 
-        response = agent.chat(input)
+        # response = agent.chat(input)
+
+        workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=self.llm,
+            system_prompt=str(system_prompt),
+        )
+        response = await workflow.run(user_msg=str(input))
+        
 
         self.report["GEORGE_BLACKMAN_SCORE"] = str(response)
 
@@ -408,8 +483,14 @@ def check_total_mb_score(score_string):
         print("Invalid input format.")
         return None
 
-async def modify_script(script: str, input: str, chat_history):
-    llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=get_settings().RESEARCH_LLM_NAME)
+async def modify_script(script: str, input: str, chat_history, provider, model):
+    llm = None
+    if provider == "openai":
+        llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=model)
+    elif provider == "openrouter":
+        llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=model, max_tokens=1000)
+
+    # llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=get_settings().RESEARCH_LLM_NAME)
     tool_list = [
                     FunctionTool.from_defaults(tools.search_notion_pages, 
                         name="search_notion_pages", 
@@ -421,21 +502,32 @@ async def modify_script(script: str, input: str, chat_history):
                         )
         ]
     agent_input = f"The script is:{script}. The modification request is: {input} \n\n The chat history is: {chat_history}"
-    agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=prompts.SCRIPT_MODIFICATION_PROMPT, llm=llm)
-    response = agent.chat(agent_input)
+    # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=prompts.SCRIPT_MODIFICATION_PROMPT, llm=llm)
+    # response = agent.chat(agent_input)
+    workflow = AgentWorkflow.from_tools_or_functions(
+            tool_list,
+            llm=llm,
+            system_prompt=str(prompts.SCRIPT_MODIFICATION_PROMPT),
+        )
+    response = await workflow.run(user_msg=str(agent_input))
+        
     # resp = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=get_settings().RESEARCH_LLM_NAME).chat(messages)
 
     return str(response)
 
-async def generate_final_new_script(initial_script: str, modification_prompt:str, modified_script: str):
-       
+async def generate_final_new_script(initial_script: str, modification_prompt:str, modified_script: str, provider, model):
+    llm = None
+    if provider == "openai":
+        llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=model)
+    elif provider == "openrouter":
+        llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=model, max_tokens=1000)
     messages = [
         ChatMessage(
             role="system", content="You are a skilled script writer and editor tasked with generating a final script based on the initial script, modification request and the modified script"
         ),
         ChatMessage(role="user", content=f"Generate the complete final script. \n\n This is the initial script: {initial_script} \n\n This is was the modification request: {modification_prompt} \n\n This is the modified script response based on the request: {modified_script}"),
     ]
-    response = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=get_settings().RESEARCH_LLM_NAME).chat(messages)
+    response = llm.chat(messages)
 
     return str(response)
 

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     security: Security
     database: Database
     OPENAI_API_KEY: str
+    OPENROUTER_API_KEY: str
     EMBEDDING_MODEL: str
     CHUNK_OVERLAP: int
     CHUNK_SIZE: int

@@ -61,6 +61,8 @@ async def agent_team(
         initial_input = request.get('initial_input')
         chat_id = ObjectId(request.get('chat_id'))
         collection = db.Ideation
+        provider = request.get('provider', "openai")
+        model = request.get('model', "gpt-4o")
 
         full_chat_history = await messages(request.get('chat_id'))
 
@@ -68,11 +70,11 @@ async def agent_team(
 
         ideation = IdeationFlow(timeout=300, verbose=True)
 
-        ideation_result = await ideation.run(input=initial_input, chat_history=chat_summary)
+        ideation_result = await ideation.run(input=initial_input, chat_history=chat_summary, provider=provider, model=model)
 
         research = ResearchFlow(timeout=300, verbose=True)
 
-        research_result = await research.run(input=initial_input, ideation=ideation_result, chat_history=chat_summary)
+        research_result = await research.run(input=initial_input, ideation=ideation_result, chat_history=chat_summary, provider=provider, model=model)
 
         total_time = time.time() - start_time
         
@@ -115,6 +117,9 @@ async def generate_script(request: dict):
         research_result = request.get('research_result')
         ideation_id = ObjectId(request.get("ideation_id"))
         chat_id = ObjectId(request.get('chat_id'))
+        provider = request.get('provider', "openai")
+        model = request.get('model', "gpt-4o")
+
         
         full_chat_history = await messages(request.get('chat_id'))
 
@@ -124,7 +129,7 @@ async def generate_script(request: dict):
 
         scripting = ScriptingFlow(timeout=300, verbose=True)
 
-        response = await scripting.run(ideation=ideation_result, research=research_result, chat_history=chat_summary)
+        response = await scripting.run(ideation=ideation_result, research=research_result, chat_history=chat_summary, provider=provider, model=model)
 
         total_time = time.time() - start_time
 
@@ -171,6 +176,8 @@ async def generate_script(request: dict):
         # ideation_id = ObjectId(request.get("script_id"))
         script = str(request.get("script"))
         modification_prompt = str(request.get("modification_prompt"))
+        provider = request.get('provider', "openai")
+        model = request.get('model', "gpt-4o")
 
         full_chat_history = await messages(request.get('chat_id'))
 
@@ -179,7 +186,7 @@ async def generate_script(request: dict):
 
         # collection = db.Scripts
 
-        modification_response = await modify_script(script, modification_prompt, chat_summary)
+        modification_response = await modify_script(script, modification_prompt, chat_summary, provider, model)
         modified_script = await generate_final_new_script(script, modification_prompt, modification_response)
 
         await update_final_script(str(request.get("script_id")), modified_script)
