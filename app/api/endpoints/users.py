@@ -4,10 +4,11 @@ import logging
 import time
 from datetime import datetime, timedelta
 import json
-from app.api.agents import IdeationFlow, ResearchFlow, ScriptingFlow, modify_script, generate_final_new_script, summarize_chat_history
+from app.api.agents import IdeationFlow, ResearchFlow, modify_script, generate_final_new_script, summarize_chat_history, ScriptingWorkflow, mr_beast_evaluator, george_blackman_evaluator
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from app.core.config import get_settings
+
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -110,7 +111,7 @@ async def agent_team(
 
 @router.post("/generate_script")
 async def generate_script(request: dict):
-    logger.info(f"Research started")
+    logger.info(f"Started")
     start_time = time.time()
     try:
         ideation_result = request.get('ideation_result')
@@ -119,31 +120,37 @@ async def generate_script(request: dict):
         chat_id = ObjectId(request.get('chat_id'))
         provider = request.get('provider', "openai")
         model = request.get('model', "gpt-4o")
+        scripting_prompt= request.get('scripting_prompt')
 
-        
         full_chat_history = await messages(request.get('chat_id'))
 
-        chat_summary = await summarize_chat_history(str(full_chat_history))
+        # chat_summary = await summarize_chat_history(str(full_chat_history))
         
         collection = db.Scripts
 
-        scripting = ScriptingFlow(timeout=300, verbose=True)
+        scripting = ScriptingWorkflow(timeout=300, verbose=True)
 
-        response = await scripting.run(ideation=ideation_result, research=research_result, chat_history=chat_summary, provider=provider, model=model)
+        response = await scripting.run(ideation=ideation_result, research=research_result, chat_history=str(full_chat_history), provider=provider, model=model, scripting_prompt=scripting_prompt, input="Generate the script")
 
         total_time = time.time() - start_time
+        initial_script = ""
+        for res in response:
+            initial_script = initial_script + f"{res}: {response[res]} \n\n" 
 
-        await add_message(f"Initial Script: {response["Final_Script"]}", request.get('chat_id'), "ai")
-        await add_message(f"MR Beast Feedback: {response["MR_BEAST_SCORE"]}", request.get('chat_id'), "ai")
-        await add_message(f"George Blackman Feedback: {response["GEORGE_BLACKMAN_SCORE"]}", request.get('chat_id'), "ai")
+
+        await add_message(f"Initial Script: {initial_script}", request.get('chat_id'), "ai")
+        # await add_message(f"MR Beast Feedback: {response["MR_BEAST_SCORE"]}", request.get('chat_id'), "ai")
+        # await add_message(f"George Blackman Feedback: {response["GEORGE_BLACKMAN_SCORE"]}", request.get('chat_id'), "ai")
 
         document = {
             "ideation_id": ideation_id,
             "initial_input": ideation_result,
-            "initial_script": response["Final_Script"],
-            "final_script": response["Final_Script"],
-            "mr_beast_score": response["MR_BEAST_SCORE"],
-            "george_blackman_score": response["GEORGE_BLACKMAN_SCORE"],
+            "initial_script": initial_script,
+            "final_script": initial_script,
+            # "mr_beast_score": response["MR_BEAST_SCORE"],
+            "mr_beast_score": "NA",
+            # "george_blackman_score": response["GEORGE_BLACKMAN_SCORE"],
+            "george_blackman_score": "NA",
             "chat_id": chat_id,
             "process_time": total_time,
             "timestamp": time.time()
@@ -154,9 +161,12 @@ async def generate_script(request: dict):
 
         return {
             "success": True,
-            "script": response["Final_Script"],
-            "mr_beast_score": response["MR_BEAST_SCORE"],
-            "george_blackman_score": response["GEORGE_BLACKMAN_SCORE"],
+            # "script": response["Final_Script"],
+            "script": initial_script,
+            "mr_beast_score": "NA",
+            # "mr_beast_score": response["MR_BEAST_SCORE"],
+            # "george_blackman_score": response["GEORGE_BLACKMAN_SCORE"],
+            "george_blackman_score": "NA",
             "total_process_time": total_time
         }
 
@@ -168,7 +178,7 @@ async def generate_script(request: dict):
         raise HTTPException(status_code=500, detail=str(error))
 
 @router.post("/modify_script")
-async def generate_script(request: dict):
+async def modif_script(request: dict):
     logger.info(f"Research started")
     start_time = time.time()
     try:
@@ -187,7 +197,7 @@ async def generate_script(request: dict):
         # collection = db.Scripts
 
         modification_response = await modify_script(script, modification_prompt, chat_summary, provider, model)
-        modified_script = await generate_final_new_script(script, modification_prompt, modification_response)
+        modified_script = await generate_final_new_script(script, modification_prompt, modification_response, provider, model)
 
         await update_final_script(str(request.get("script_id")), modified_script)
 

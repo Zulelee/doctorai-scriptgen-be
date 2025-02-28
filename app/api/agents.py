@@ -19,7 +19,7 @@ from datetime import datetime
 from llama_index.core.llms import ChatMessage
 from pydantic import Field
 from llama_index.core.agent.workflow import AgentWorkflow
-
+import re
 
 class SEO_Platform_Strategist(Event):
     input: str
@@ -316,37 +316,264 @@ class MR_BEAST_EVALUATOR(Event):
 class Evaluate_Score(Event):
     input: str
 
-class ScriptingFlow(Workflow):
-    llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=get_settings().RESEARCH_LLM_NAME)
+# class ScriptingFlow(Workflow):
+#     llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=get_settings().RESEARCH_LLM_NAME)
     
-    report = {}
-    chat_history = []
+#     report = {}
+#     chat_history = []
 
-    @step()
-    async def start_agent_flow(self, ev: StartEvent) -> Lead_Scriptwriter_Engagement_Maestro:
-        if ev.provider == "openai":
-            self.llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=ev.model)
-        elif ev.provider == "openrouter":
-            self.llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=ev.model, max_tokens=1000)
+#     scripting_prompt = prompts.Scriptwriter_Prompt
 
+#     @step()
+#     async def start_agent_flow(self, ev: StartEvent) -> Lead_Scriptwriter_Engagement_Maestro:
+#         if ev.provider == "openai":
+#             self.llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=ev.model)
+#         elif ev.provider == "openrouter":
+#             self.llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=ev.model, max_tokens=1000)
 
-        ideation_output = ev.ideation
-        research_output = ev.research
+#         if ev.scripting_prompt:
+#             self.scripting_prompt = ev.scripting_prompt
 
-        self.chat_history = ev.chat_history
-        self.report["ideation_output"] = ideation_output
-        self.report["research_output"] = research_output
+#         ideation_output = ev.ideation
+#         research_output = ev.research
 
-        prompt = f"Here is the chosen set from output of Team 1 (Ideation Workflow): {ideation_output}. \n\n Here is the output of Team 2 (Medical Researcher): {research_output}  \n\n The chat history is: {self.chat_history}"
+#         self.chat_history = ev.chat_history
+#         self.report["ideation_output"] = ideation_output
+#         self.report["research_output"] = research_output
+
+#         prompt = f"Here is the chosen set from output of Team 1 (Ideation Workflow): {ideation_output}. \n\n Here is the output of Team 2 (Medical Researcher): {research_output}  \n\n The chat history is: {self.chat_history}"
         
-        return Lead_Scriptwriter_Engagement_Maestro(input=str(prompt))
+#         return Lead_Scriptwriter_Engagement_Maestro(input=str(prompt))
 
-    @step()
-    async def scriptwriter(self, ev: Lead_Scriptwriter_Engagement_Maestro) -> GEORGE_BLACKMAN_EVALUATOR | MR_BEAST_EVALUATOR:
+#     @step()
+#     async def scriptwriter(self, ev: Lead_Scriptwriter_Engagement_Maestro) -> GEORGE_BLACKMAN_EVALUATOR | MR_BEAST_EVALUATOR:
+#         input = ev.input
+        
+#         system_prompt= self.scripting_prompt
+
+#         tool_list = [FunctionTool.from_defaults(tools.avatar_information, 
+#                         name="Avatar", 
+#                         description="use it to find out more about our target audience, our avatars. Their information about interests, age, employment and other information about them."
+#                         ),
+
+#                     FunctionTool.from_defaults(tools.sugarbrain_information, 
+#                         name="Ultimate_Brain", 
+#                         description="Use it to retrieve all the important information for current script in terms of scientific knowledge. It contains research papers, notes, insights, conclusions, scientific review articles and much more relating to current problem we are trying to tackle in the video. Use it always."
+#                         ),
+#                     FunctionTool.from_defaults(tools.ultimatebrain_information, 
+#                         name="scripting_brain", 
+#                         description="This is a database that contains a lot of curated distilled knowledge about scripting, content creation and optimal way to write youtube video scripts. It contains a lot of viable, useful, crucial, key information for perfect, masterpiece youtube video content creation process."
+#                         ),
+#                     FunctionTool.from_defaults(tools.search_notion_pages, 
+#                         name="search_notion_pages", 
+#                         description="Use this to search for relevent research articles to add references in the script."
+#                         ),
+#                     FunctionTool.from_defaults(tools.extract_notion_page_content, 
+#                         name="extract_notion_page_content", 
+#                         description="Use this to extract the page content from notion"
+#                         )
+#         ]
+
+#         # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+
+#         # response = agent.chat(input)
+
+#         workflow = AgentWorkflow.from_tools_or_functions(
+#             tool_list,
+#             llm=self.llm,
+#             system_prompt=str(system_prompt),
+#         )
+#         response = await workflow.run(user_msg=str(input))
+        
+
+#         self.report["Final_Script"] = str(response)
+        
+#         tools.save_outputs_in_notion(str(response), f"Final Script - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        
+#         self.send_event(GEORGE_BLACKMAN_EVALUATOR(input=str(response)))
+#         self.send_event(MR_BEAST_EVALUATOR(input=str(response)))
+
+#     @step()
+#     async def mr_beast_evaluator(self, ev: MR_BEAST_EVALUATOR) -> Evaluate_Score:
+#         input = ev.input
+        
+#         system_prompt= prompts.MR_BEAST_EVALUATOR
+
+#         tool_list = []
+
+#         # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+
+#         # response = agent.chat(input)
+#         workflow = AgentWorkflow.from_tools_or_functions(
+#             tool_list,
+#             llm=self.llm,
+#             system_prompt=str(system_prompt),
+#         )
+#         response = await workflow.run(user_msg=str(input))
+        
+
+#         self.report["MR_BEAST_SCORE"] = str(response)
+
+#         return Evaluate_Score(input="")
+
+#     @step()
+#     async def gorge_blackman_evaluator(self, ev: GEORGE_BLACKMAN_EVALUATOR) -> Evaluate_Score:
+#         input = ev.input
+        
+#         system_prompt= prompts.GEORGE_BLACKMAN_EVALUATOR
+
+#         tool_list = []
+
+#         # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+
+#         # response = agent.chat(input)
+
+#         workflow = AgentWorkflow.from_tools_or_functions(
+#             tool_list,
+#             llm=self.llm,
+#             system_prompt=str(system_prompt),
+#         )
+#         response = await workflow.run(user_msg=str(input))
+        
+
+#         self.report["GEORGE_BLACKMAN_SCORE"] = str(response)
+
+#         return Evaluate_Score(input="")
+
+#     @step()
+#     async def evaluate_score(self, ctx: Context, ev: Evaluate_Score) -> StopEvent | Lead_Scriptwriter_Engagement_Maestro | None:
+        
+#         ready = ctx.collect_events(ev, [Evaluate_Score] * 2)
+#         if ready is None:
+#             return None
+
+#         print(self.report["GEORGE_BLACKMAN_SCORE"])
+#         print(self.report["MR_BEAST_SCORE"])
+
+#         GEORGE_BLACKMAN_SCORE = self.report["GEORGE_BLACKMAN_SCORE"]
+#         MR_BEAST_SCORE = self.report["MR_BEAST_SCORE"]
+
+#         if check_total_mb_score(GEORGE_BLACKMAN_SCORE) or check_total_mb_score(MR_BEAST_SCORE):
+#             input = f'''This is the final script that was generated: {self.report["Final_Script"]}. 
+#             Here is the chosen set from output of Team 1 (Ideation Workflow): {ideation_output}. 
+#             Here is the output of Team 2 (Medical Researcher): {research_output}. 
+#             Current date & time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+#             The score given to the final script by gorge blackman & Mr Beast is as following:
+#             GEORGE_BLACKMAN_SCORE: {self.report["GEORGE_BLACKMAN_SCORE"]}
+#             MR_BEAST_SCORE: {self.report["MR_BEAST_SCORE"]}
+
+#             The score wasn't up to mark. Please recreate the script again.
+#             '''
+#             return Lead_Scriptwriter_Engagement_Maestro(input=input)
+#         else:
+#             return StopEvent(result=self.report)
+
+
+class ScriptCEO(Event):
+    input: str
+
+class ContextResearchExtraction(Event):
+    input: str
+
+class StoryNarrativeStructureDevelopment(Event):
+    input: str
+
+class ContentStructureProductionBlueprint(Event):
+    input: str
+
+class HookIntroduction(Event):
+    input: str
+
+class Segment1(Event):
+    input: str
+
+class Segment2(Event):
+    input: str
+
+class Segment3(Event):
+    input: str
+
+class Segment4(Event):
+    input: str
+
+class ConclusionCTA(Event):
+    input: str
+
+class FinalCompilation(Event):
+    input: str
+
+class ScriptingWorkflow(Workflow):
+
+    responses = {}
+    initial_input = " "
+    index = 0
+    llm = OpenAI(model = "gpt-4o-mini", api_key = get_settings().OPENAI_API_KEY)
+    ideation_output = ""
+    research_output = ""
+    chat_history = ""
+
+
+    @step
+    async def ceo(self, ctx: Context, ev: StartEvent) -> ContextResearchExtraction | StoryNarrativeStructureDevelopment | ContentStructureProductionBlueprint | Segment1 | Segment2 | Segment3 | Segment4 | ConclusionCTA | HookIntroduction:
+
+        system_prompt = prompts.ScriptCEO_Prompt
+        
         input = ev.input
-        
-        system_prompt= prompts.Scriptwriter_Prompt
 
+        self.index = self.index + 1
+        
+        if self.index == 1:
+            # self.initial_input = ev.input
+            if ev.provider == "openai":
+                self.llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=ev.model)
+            elif ev.provider == "openrouter":
+                self.llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=ev.model, max_tokens=1000)
+
+            self.ideation_output = ev.ideation
+            self.research_output = ev.research
+            self.chat_history = ev.chat_history
+            input = f"Here is the chosen set from output of Team 1 (Ideation Workflow): {self.ideation_output}. \n\n Here is the output of Team 2 (Medical Researcher): {self.research_output}  \n\n The chat history is: {ev.chat_history}."
+            self.initial_input = ev.input
+
+        # if ev.scripting_prompt is not None:
+        #     system_prompt = ev.scripting_prompt
+
+
+        agent = OpenAIAgent.from_tools([], verbose=True, system_prompt=system_prompt, llm=self.llm)
+
+        response = agent.chat(input).response
+
+        print("response is:" + response)
+
+        next_agent = re.search(r'Next Agent:\s*(.+)', response)
+
+        if next_agent:
+            next_agent = next_agent.group(1).strip()
+            print("next agent is:" + next_agent)
+       
+        if "ContextResearchExtraction" in next_agent:
+            return ContextResearchExtraction(input=response)
+        elif "StoryNarrativeStructureDevelopment" in next_agent:
+            return StoryNarrativeStructureDevelopment(input=response)
+        elif "ContentStructureProductionBlueprint" in next_agent:
+            return ContentStructureProductionBlueprint(input=response)
+        elif "Segment1" in next_agent or "Segment2" in next_agent or "Segment3" in next_agent or "Segment4" in next_agent or "ConclusionCTA" in next_agent or "HookIntroduction":
+            ctx.send_event(HookIntroduction(input=response))
+            ctx.send_event(Segment1(input=response))
+            ctx.send_event(Segment2(input=response))
+            ctx.send_event(Segment3(input=response))
+            ctx.send_event(Segment4(input=response))
+            ctx.send_event(ConclusionCTA(input=response))
+
+    @step
+    async def researchExtraction(self, ctx: Context, ev: ContextResearchExtraction) -> StartEvent:
+
+        input = ev.input
+
+        exa_tool = ExaToolSpec(
+            api_key=get_settings().EXA_API_KEY
+        )
+        
         tool_list = [FunctionTool.from_defaults(tools.avatar_information, 
                         name="Avatar", 
                         description="use it to find out more about our target audience, our avatars. Their information about interests, age, employment and other information about them."
@@ -367,102 +594,158 @@ class ScriptingFlow(Workflow):
                     FunctionTool.from_defaults(tools.extract_notion_page_content, 
                         name="extract_notion_page_content", 
                         description="Use this to extract the page content from notion"
-                        )
+                        ),
+                    FunctionTool.from_defaults(tools.perplexity_ai_search,
+                        name="perplexity_ai_search",
+                        description="You can use this tool, to understand concepts or search for certain queries for elaboration. Useful when conducting research using Perplexity AI online model."),
+                    # exa_tool.to_tool_list()
         ]
 
-        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=prompts.ContextResearchExtraction_Prompt, llm=self.llm)
 
-        # response = agent.chat(input)
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input} and here are the instructions of the ScriptWriter Oschestrator: {input}').response
 
-        workflow = AgentWorkflow.from_tools_or_functions(
-            tool_list,
-            llm=self.llm,
-            system_prompt=str(system_prompt),
+        self.responses["ContextResearchExtraction"] = response
+
+        return StartEvent(input=f'I have completed ContextResearchExtraction task. Here is my output: {response}')
+
+    @step
+    async def storyNarrativeStructureDevelopment(self, ctx: Context, ev: StoryNarrativeStructureDevelopment) -> StartEvent:
+
+        exa_tool = ExaToolSpec(
+            api_key=get_settings().EXA_API_KEY
         )
-        response = await workflow.run(user_msg=str(input))
-        
 
-        self.report["Final_Script"] = str(response)
-        
-        tools.save_outputs_in_notion(str(response), f"Final Script - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        
-        self.send_event(GEORGE_BLACKMAN_EVALUATOR(input=str(response)))
-        self.send_event(MR_BEAST_EVALUATOR(input=str(response)))
-
-    @step()
-    async def mr_beast_evaluator(self, ev: MR_BEAST_EVALUATOR) -> Evaluate_Score:
         input = ev.input
-        
-        system_prompt= prompts.MR_BEAST_EVALUATOR
 
-        tool_list = []
+        tool_list = [FunctionTool.from_defaults(tools.avatar_information, 
+                        name="Avatar", 
+                        description="use it to find out more about our target audience, our avatars. Their information about interests, age, employment and other information about them."
+                        ),
+                        FunctionTool.from_defaults(tools.perplexity_ai_search,
+                        name="perplexity_ai_search",
+                        description="You can use this tool, to understand concepts or search for certain queries for elaboration. Useful when conducting research using Perplexity AI online model."),
+                        # exa_tool.to_tool_list()
+        ]
 
-        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=prompts.StoryNarrativeStructureDevelopment_Prompt, llm=self.llm)
 
-        # response = agent.chat(input)
-        workflow = AgentWorkflow.from_tools_or_functions(
-            tool_list,
-            llm=self.llm,
-            system_prompt=str(system_prompt),
-        )
-        response = await workflow.run(user_msg=str(input))
-        
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input}. \n\n Here is the output of the other agents: {self.responses}. \n\n Here is the chat history while brainstorming the idea: {self.chat_history} \n\n Here are the instructions of the ScriptWriter Oschestrator: {input}').response
 
-        self.report["MR_BEAST_SCORE"] = str(response)
+        self.responses["StoryNarrativeStructureDevelopment"] = str(response)
 
-        return Evaluate_Score(input="")
+        return StartEvent(input=f'I have completed StoryNarrativeStructureDevelopment task. Here is my output: {response}')
 
-    @step()
-    async def gorge_blackman_evaluator(self, ev: GEORGE_BLACKMAN_EVALUATOR) -> Evaluate_Score:
+    @step
+    async def contentStructureProductionBlueprint(self, ctx: Context, ev: ContentStructureProductionBlueprint) -> StartEvent:
+
         input = ev.input
-        
-        system_prompt= prompts.GEORGE_BLACKMAN_EVALUATOR
+        tool_list = [FunctionTool.from_defaults(tools.avatar_information, 
+                                name="Avatar", 
+                                description="use it to find out more about our target audience, our avatars. Their information about interests, age, employment and other information about them."
+                                )
+                                            
+                    ]
+        agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=prompts.ContentStructureProductionBlueprint_Prompt, llm=self.llm)
 
-        tool_list = []
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input}. \n\n Here is the output of the other agents: {self.responses}. \n\n Here is the chat history while brainstorming the idea: {self.chat_history} \n\n Here are the instructions of the ScriptWriter Oschestrator: {input}').response
 
-        # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+        self.responses["ContentStructureProductionBlueprint"] = str(response)
 
-        # response = agent.chat(input)
+        return StartEvent(input=f'I have completed ContentStructureProductionBlueprint task. Here is my output: {response}')
 
-        workflow = AgentWorkflow.from_tools_or_functions(
-            tool_list,
-            llm=self.llm,
-            system_prompt=str(system_prompt),
-        )
-        response = await workflow.run(user_msg=str(input))
-        
+    @step
+    async def hookIntro(self, ctx: Context, ev: HookIntroduction) -> FinalCompilation:
 
-        self.report["GEORGE_BLACKMAN_SCORE"] = str(response)
+        input = ev.input
 
-        return Evaluate_Score(input="")
+        agent = OpenAIAgent.from_tools([], verbose=True, system_prompt=prompts.HookIntroduction_Prompt, llm=self.llm)
 
-    @step()
-    async def evaluate_score(self, ctx: Context, ev: Evaluate_Score) -> StopEvent | Lead_Scriptwriter_Engagement_Maestro | None:
-        
-        ready = ctx.collect_events(ev, [Evaluate_Score] * 2)
-        if ready is None:
-            return None
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input}. \n\n Here is the output of the other agents: {self.responses}. \n\n Here is the chat history while brainstorming the idea: {self.chat_history} \n\n Here are the instructions of the ScriptWriter Oschestrator: {input}').response
 
-        print(self.report["GEORGE_BLACKMAN_SCORE"])
-        print(self.report["MR_BEAST_SCORE"])
+        self.responses["HookIntroduction"] = str(response)
 
-        GEORGE_BLACKMAN_SCORE = self.report["GEORGE_BLACKMAN_SCORE"]
-        MR_BEAST_SCORE = self.report["MR_BEAST_SCORE"]
+        return FinalCompilation(input=f'I have completed HookIntroduction task.')
 
-        if check_total_mb_score(GEORGE_BLACKMAN_SCORE) or check_total_mb_score(MR_BEAST_SCORE):
-            input = f'''This is the final script that was generated: {self.report["Final_Script"]}. 
-            Here is the chosen set from output of Team 1 (Ideation Workflow): {ideation_output}. 
-            Here is the output of Team 2 (Medical Researcher): {research_output}. 
-            Current date & time: {datetime.now().strftime("%Y-%m-%d %H:%M")}
-            The score given to the final script by gorge blackman & Mr Beast is as following:
-            GEORGE_BLACKMAN_SCORE: {self.report["GEORGE_BLACKMAN_SCORE"]}
-            MR_BEAST_SCORE: {self.report["MR_BEAST_SCORE"]}
+    @step
+    async def segment1(self, ctx: Context, ev: Segment1) -> FinalCompilation:
 
-            The score wasn't up to mark. Please recreate the script again.
-            '''
-            return Lead_Scriptwriter_Engagement_Maestro(input=input)
-        else:
-            return StopEvent(result=self.report)
+        input = ev.input
+
+        agent = OpenAIAgent.from_tools([], verbose=True, system_prompt=prompts.Segment1_Prompt, llm=self.llm)
+
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input}. \n\n Here is the output of the other agents: {self.responses}. \n\n Here is the chat history while brainstorming the idea: {self.chat_history} \n\n Here are the instructions of the ScriptWriter Oschestrator: {input}').response
+
+        self.responses["Segment1"] = str(response)
+
+        return FinalCompilation(input=f'I have completed Segment1 task.')
+
+    @step
+    async def segment2(self, ctx: Context, ev: Segment2) -> FinalCompilation:
+
+        input = ev.input
+
+        agent = OpenAIAgent.from_tools([], verbose=True, system_prompt=prompts.Segment2_Prompt, llm=self.llm)
+
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input}. \n\n Here is the output of the other agents: {self.responses}. \n\n Here is the chat history while brainstorming the idea: {self.chat_history} \n\n Here are the instructions of the ScriptWriter Oschestrator: {input}').response
+
+        self.responses["Segment2"] = str(response)
+
+        return FinalCompilation(input=f'I have completed Segment2 task.')
+
+    @step
+    async def segment3(self, ctx: Context, ev: Segment3) -> FinalCompilation:
+
+        input = ev.input
+
+        agent = OpenAIAgent.from_tools([], verbose=True, system_prompt=prompts.Segment3_Prompt, llm=self.llm)
+
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input}. \n\n Here is the output of the other agents: {self.responses}. \n\n Here is the chat history while brainstorming the idea: {self.chat_history} \n\n Here are the instructions of the ScriptWriter Oschestrator: {input}').response
+
+        self.responses["Segment3"] = str(response)
+
+        return FinalCompilation(input=f'I have completed Segment3 task.')
+
+    @step
+    async def segment4(self, ctx: Context, ev: Segment4) -> FinalCompilation:
+
+        input = ev.input
+
+        agent = OpenAIAgent.from_tools([], verbose=True, system_prompt=prompts.Segment4_Prompt, llm=self.llm)
+
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input}. \n\n Here is the output of the other agents: {self.responses}. \n\n Here is the chat history while brainstorming the idea: {self.chat_history} \n\n Here are the instructions of the ScriptWriter Oschestrator: {input}').response
+
+        self.responses["Segment4"] = str(response)
+
+        return FinalCompilation(input=f'I have completed Segment4 task.')
+
+    @step
+    async def conclusion(self, ctx: Context, ev: ConclusionCTA) -> FinalCompilation:
+
+        input = ev.input
+
+        agent = OpenAIAgent.from_tools([], verbose=True, system_prompt=prompts.ConclusionCTA_Prompt, llm=self.llm)
+
+        response = agent.chat(f'Here is the initial input buy the user: {self.initial_input}. \n\n Here is the output of the other agents: {self.responses}. \n\n Here is the chat history while brainstorming the idea: {self.chat_history} \n\n Here are the instructions of the ScriptWriter Oschestrator: {input}').response
+
+        self.responses["ConclusionCTA"] = str(response)
+
+        return FinalCompilation(input=f'I have completed ConclusionCTA task.')
+
+    @step
+    async def compilation(self, ctx: Context, ev: FinalCompilation) -> StopEvent:
+
+        print("------------SCRIPT WRITING COMPLETED---------------")
+
+        result = ctx.collect_events(ev, [FinalCompilation] * 6)
+
+        print(result)
+
+        print(self.responses)
+
+        return StopEvent(self.responses)
+
+
 
 def check_total_mb_score(score_string):
     try:
@@ -490,16 +773,36 @@ async def modify_script(script: str, input: str, chat_history, provider, model):
     elif provider == "openrouter":
         llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=model, max_tokens=1000)
 
+    exa_tool = ExaToolSpec(
+            api_key=get_settings().EXA_API_KEY
+        )
+    
     # llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=get_settings().RESEARCH_LLM_NAME)
-    tool_list = [
-                    FunctionTool.from_defaults(tools.search_notion_pages, 
-                        name="search_notion_pages", 
-                        description="Use this to search for relevent research articles to add references in the script."
-                        ),
-                    FunctionTool.from_defaults(tools.extract_notion_page_content, 
-                        name="extract_notion_page_content", 
-                        description="Use this to extract the page content from notion"
-                        )
+    
+    tool_list = [FunctionTool.from_defaults(tools.avatar_information, 
+                    name="Avatar", 
+                    description="use it to find out more about our target audience, our avatars. Their information about interests, age, employment and other information about them."
+                    ),
+                FunctionTool.from_defaults(tools.sugarbrain_information, 
+                    name="Ultimate_Brain", 
+                    description="Use it to retrieve all the important information for current script in terms of scientific knowledge. It contains research papers, notes, insights, conclusions, scientific review articles and much more relating to current problem we are trying to tackle in the video. Use it always."
+                    ),
+                FunctionTool.from_defaults(tools.ultimatebrain_information, 
+                    name="scripting_brain", 
+                    description="This is a database that contains a lot of curated distilled knowledge about scripting, content creation and optimal way to write youtube video scripts. It contains a lot of viable, useful, crucial, key information for perfect, masterpiece youtube video content creation process."
+                    ),
+                FunctionTool.from_defaults(tools.search_notion_pages, 
+                    name="search_notion_pages", 
+                    description="Use this to search for relevent research articles to add references in the script."
+                    ),
+                FunctionTool.from_defaults(tools.extract_notion_page_content, 
+                    name="extract_notion_page_content", 
+                    description="Use this to extract the page content from notion"
+                    ),
+                FunctionTool.from_defaults(tools.perplexity_ai_search,
+                    name="perplexity_ai_search",
+                    description="You can use this tool, to understand concepts or search for certain queries for elaboration. Useful when conducting research using Perplexity AI online model."),
+                # exa_tool.to_tool_list()
         ]
     agent_input = f"The script is:{script}. The modification request is: {input} \n\n The chat history is: {chat_history}"
     # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=prompts.SCRIPT_MODIFICATION_PROMPT, llm=llm)
@@ -543,3 +846,50 @@ async def summarize_chat_history(chat: str):
 
     return str(response)
 
+
+async def mr_beast_evaluator(script, provider, model) -> Evaluate_Score:
+    llm = None
+    if provider == "openai":
+        llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=model)
+    elif provider == "openrouter":
+        llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=model, max_tokens=1000)
+        
+    system_prompt= prompts.MR_BEAST_EVALUATOR
+
+    tool_list = []
+
+    # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+
+    # response = agent.chat(input)
+    workflow = AgentWorkflow.from_tools_or_functions(
+        tool_list,
+        llm=llm,
+        system_prompt=str(system_prompt),
+    )
+    response = await workflow.run(user_msg=str(script))
+    
+    return str(response)
+
+
+async def george_blackman_evaluator(script, provider, model) -> Evaluate_Score:
+    llm = None
+    if provider == "openai":
+        llm = OpenAI(api_key=get_settings().OPENAI_API_KEY, model=model)
+    elif provider == "openrouter":
+        llm = OpenRouter(api_key=get_settings().OPENROUTER_API_KEY, model=model, max_tokens=1000)
+        
+    system_prompt= prompts.MR_BEAST_EVALUATOR
+
+    tool_list = []
+
+    # agent = OpenAIAgent.from_tools(tool_list, verbose=True, system_prompt=system_prompt, llm=self.llm)
+
+    # response = agent.chat(input)
+    workflow = AgentWorkflow.from_tools_or_functions(
+        tool_list,
+        llm=llm,
+        system_prompt=str(system_prompt),
+    )
+    response = await workflow.run(user_msg=str(script))
+    
+    return str(response)
